@@ -1,0 +1,36 @@
+# https://supabase.com/docs/guides/local-development/cli/config
+
+project_id = "calendo"
+
+[api]
+enabled = true
+
+[db]
+major_version = 15
+
+# Browser CORS preflight (OPTIONS) does not send Authorization. With verify_jwt = true
+# the gateway returns a non-OK response before your function runs, so CORS fails.
+# Auth is enforced in each function via requireUser() + Bearer token.
+[functions.events]
+verify_jwt = false
+
+[functions.profile]
+verify_jwt = false
+
+[functions.attachments]
+verify_jwt = false
+
+[functions.events-public]
+verify_jwt = false
+
+[functions.profile-public]
+verify_jwt = false
+
+[functions.username-available]
+verify_jwt = false
+
+[functions.delete-account]
+verify_jwt = false
+
+[functions.avatar]
+verify_jwt = false
