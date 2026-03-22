@@ -1,7 +1,11 @@
 import type { CalendarEvent } from '../../types'
 import { layoutTimedBlocks, type TimedBlock } from '../../lib/calendar/dayViewLayout'
+import {
+  getIndonesiaHolidayLabel,
+  isLocalWeekendFromDayISO,
+} from '../../lib/calendar/indonesiaHolidays'
 import { eventBlockSvg, eventPillSx } from './eventColors'
-import { Box, Button, Paper, Typography, useTheme } from '@mui/material'
+import { Alert, Box, Button, Paper, Typography, useTheme } from '@mui/material'
 
 type Props = {
   /** Local calendar day YYYY-MM-DD (interpreted in browser local TZ). */
@@ -63,8 +67,35 @@ export function DayView({
 
   const hours = Array.from({ length: 24 }, (_, h) => h)
 
+  const holidayLabel = getIndonesiaHolidayLabel(dayISO)
+  const localWeekend = isLocalWeekendFromDayISO(dayISO)
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', p: { xs: 1, sm: 2 } }}>
+      {holidayLabel || localWeekend ? (
+        <Alert
+          severity="error"
+          variant="outlined"
+          icon={false}
+          sx={{
+            mb: 1.5,
+            borderColor: 'error.main',
+            color: 'error.main',
+            bgcolor: (t) =>
+              t.palette.mode === 'light' ? 'rgba(211, 47, 47, 0.06)' : 'rgba(244, 67, 54, 0.12)',
+          }}
+        >
+          {holidayLabel ? (
+            <Typography variant="body2" fontWeight={600}>
+              {holidayLabel}
+            </Typography>
+          ) : (
+            <Typography variant="body2" fontWeight={600}>
+              Akhir pekan
+            </Typography>
+          )}
+        </Alert>
+      ) : null}
       {allDay.length > 0 ? (
         <Box
           sx={{

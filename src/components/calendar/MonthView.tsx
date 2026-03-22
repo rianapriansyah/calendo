@@ -23,6 +23,11 @@ import {
   sameUTCDate,
   toISODateUTC,
 } from '../../lib/calendar/dateUtils'
+import {
+  getIndonesiaHolidayLabel,
+  isIndonesiaRedDayInGrid,
+  isUtcWeekend,
+} from '../../lib/calendar/indonesiaHolidays'
 import { formatEventWhen } from '../../lib/calendar/formatEventWhen'
 import { useLongPress } from '../../hooks/useLongPress'
 import { eventDotColor } from './eventColors'
@@ -237,7 +242,7 @@ export function MonthView({
             key={toISODateUTC(d)}
             variant="caption"
             fontWeight={600}
-            color="text.secondary"
+            color={isUtcWeekend(d) ? 'error' : 'text.secondary'}
             textAlign="center"
             sx={{
               fontSize: { xs: '0.65rem', sm: '0.75rem' },
@@ -269,6 +274,8 @@ export function MonthView({
           const isToday = sameUTCDate(d, today)
           const shown = dayEvents.slice(0, 3)
           const moreCount = dayEvents.length - shown.length
+          const holidayLabel = getIndonesiaHolidayLabel(iso)
+          const isRedDay = isIndonesiaRedDayInGrid(d, iso, isToday)
 
           const dayNum = (
             <Typography
@@ -285,9 +292,11 @@ export function MonthView({
                 borderRadius: '50%',
                 ...(isToday
                   ? { bgcolor: 'primary.main', color: 'primary.contrastText' }
-                  : {
-                      color: inMonth ? 'text.primary' : 'text.disabled',
-                    }),
+                  : !inMonth
+                    ? { color: 'text.disabled' }
+                    : isRedDay
+                      ? { color: 'error.main' }
+                      : { color: 'text.primary' }),
               }}
             >
               {d.getUTCDate()}
@@ -296,10 +305,11 @@ export function MonthView({
 
           if (isNarrow) {
             const count = dayEvents.length
-            const aria =
+            let aria =
               count === 0
                 ? `${iso}, no events. Open day`
                 : `${iso}, ${count} event${count === 1 ? '' : 's'}. Open day`
+            if (holidayLabel) aria += `. ${holidayLabel}`
 
             return (
               <Box
@@ -374,9 +384,11 @@ export function MonthView({
                           color: 'primary.contrastText',
                           '&:hover': { bgcolor: 'primary.dark' },
                         }
-                      : {
-                          color: inMonth ? 'text.primary' : 'text.disabled',
-                        }),
+                      : !inMonth
+                        ? { color: 'text.disabled' }
+                        : isRedDay
+                          ? { color: 'error.main' }
+                          : { color: 'text.primary' }),
                   }}
                 >
                   <Typography
@@ -387,6 +399,17 @@ export function MonthView({
                   </Typography>
                 </IconButton>
               )}
+              {holidayLabel ? (
+                <Typography
+                  variant="caption"
+                  color="error"
+                  noWrap
+                  title={holidayLabel}
+                  sx={{ fontSize: '0.6rem', lineHeight: 1.15, display: 'block', maxWidth: '100%' }}
+                >
+                  {holidayLabel}
+                </Typography>
+              ) : null}
               <Stack spacing={0.25} sx={{ mt: 0.25 }}>
                 {shown.map((ev) => (
                   <CompactEventRow key={ev.id} ev={ev} onHold={(el) => openDetail(ev, el)} />

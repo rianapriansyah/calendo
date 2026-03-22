@@ -6,6 +6,7 @@ import {
   sameUTCDate,
   toISODateUTC,
 } from '../../lib/calendar/dateUtils'
+import { getIndonesiaHolidayLabel, isIndonesiaRedDayInGrid } from '../../lib/calendar/indonesiaHolidays'
 import { eventDotColor } from './eventColors'
 import { Box, Button, Paper, useTheme } from '@mui/material'
 
@@ -101,7 +102,12 @@ function MiniMonth({
         }}
       >
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((wd, i) => (
-          <Box key={`weekday-${i}`}>{wd}</Box>
+          <Box
+            key={`weekday-${i}`}
+            sx={{ color: i === 0 || i === 6 ? 'error.main' : 'text.disabled' }}
+          >
+            {wd}
+          </Box>
         ))}
       </Box>
       <Box
@@ -117,11 +123,21 @@ function MiniMonth({
           const iso = toISODateUTC(d)
           const colors = dotsByDay.get(iso)
           const isToday = sameUTCDate(d, today)
+          const isRedNum = isIndonesiaRedDayInGrid(d, iso, isToday)
+          const holiday = getIndonesiaHolidayLabel(iso)
+          const dateColor = isToday
+            ? theme.palette.text.primary
+            : !inMonth
+              ? theme.palette.action.disabled
+              : isRedNum
+                ? theme.palette.error.main
+                : theme.palette.text.primary
           return (
             <Button
               key={iso}
               size="small"
               onClick={() => onSelectDay(iso)}
+              title={holiday ?? undefined}
               sx={{
                 minWidth: 0,
                 height: 28,
@@ -129,7 +145,7 @@ function MiniMonth({
                 flexDirection: 'column',
                 fontSize: 11,
                 lineHeight: 1,
-                color: inMonth ? 'text.primary' : 'action.disabled',
+                color: dateColor,
                 boxShadow: isToday ? `inset 0 0 0 2px ${theme.palette.primary.main}` : 'none',
                 borderRadius: 1,
                 '&:hover': { bgcolor: 'action.hover' },
