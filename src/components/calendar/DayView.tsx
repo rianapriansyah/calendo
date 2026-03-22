@@ -1,6 +1,7 @@
 import type { CalendarEvent } from '../../types'
+import { layoutTimedBlocks, type TimedBlock } from '../../lib/calendar/dayViewLayout'
 import { eventBlockSvg, eventPillSx } from './eventColors'
-import { Box, Button, Typography, useTheme } from '@mui/material'
+import { Box, Button, Paper, Typography, useTheme } from '@mui/material'
 
 type Props = {
   /** Local calendar day YYYY-MM-DD (interpreted in browser local TZ). */
@@ -12,8 +13,9 @@ type Props = {
 }
 
 const TOTAL_MIN = 24 * 60
-const VB_W = 100
-const VB_H = TOTAL_MIN
+/** One hour row height in px — 24h grid. */
+const HOUR_PX = 48
+const TIMELINE_MIN_PX = 24 * HOUR_PX
 
 function parseLocalDay(dayISO: string): Date {
   const [y, m, d] = dayISO.split('-').map(Number)
@@ -23,6 +25,8 @@ function parseLocalDay(dayISO: string): Date {
 function localMinutesFromDayStart(evTime: Date, dayStart: Date): number {
   return (evTime.getTime() - dayStart.getTime()) / 60_000
 }
+
+const COL_GAP_PX = 3
 
 export function DayView({
   dayISO,
@@ -35,7 +39,6 @@ export function DayView({
   const gridLine = theme.palette.divider
   const slotHover =
     theme.palette.mode === 'light' ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.06)'
-  const textFill = theme.palette.text.primary
 
   const dayStart = parseLocalDay(dayISO)
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000)
@@ -43,7 +46,7 @@ export function DayView({
   const allDay = events.filter((e) => e.is_all_day)
   const timed = events.filter((e) => !e.is_all_day)
 
-  const blocks = timed
+  const rawBlocks: TimedBlock[] = timed
     .map((e) => {
       const s = new Date(e.start_time)
       const en = new Date(e.end_time)
@@ -54,12 +57,14 @@ export function DayView({
       if (endM <= startM) return null
       return { e, startM, endM }
     })
-    .filter(Boolean) as { e: CalendarEvent; startM: number; endM: number }[]
+    .filter(Boolean) as TimedBlock[]
+
+  const blocks = layoutTimedBlocks(rawBlocks)
 
   const hours = Array.from({ length: 24 }, (_, h) => h)
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', p: 2 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', p: { xs: 1, sm: 2 } }}>
       {allDay.length > 0 ? (
         <Box
           sx={{
@@ -104,101 +109,197 @@ export function DayView({
         </Box>
       ) : null}
 
-      <Box sx={{ display: 'flex', border: 1, borderColor: 'divider', borderRadius: 1, bgcolor: 'background.paper' }}>
+      <Box
+        sx={{
+          display: 'flex',
+          border: 1,
+          borderColor: 'divider',
+          borderRadius: 1,
+          bgcolor: 'background.paper',
+          overflow: 'hidden',
+        }}
+      >
         <Box
           sx={{
-            width: 48,
+            width: { xs: 44, sm: 52 },
             flexShrink: 0,
             borderRight: 1,
             borderColor: 'divider',
             pt: 1,
-            pr: 1,
+            pr: 0.75,
             textAlign: 'right',
-            fontSize: 11,
+            fontSize: { xs: 10, sm: 11 },
             color: 'text.disabled',
+            userSelect: 'none',
           }}
         >
           {hours.map((h) => (
-            <Box key={h} sx={{ height: 48, lineHeight: 1 }}>
+            <Box key={h} sx={{ height: HOUR_PX, lineHeight: 1.1, pt: 0.25 }}>
               {h === 0 ? '12 AM' : h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h - 12} PM`}
             </Box>
           ))}
         </Box>
-        <Box sx={{ position: 'relative', flex: 1, minHeight: 1152 }}>
-          <Box
-            component="svg"
-            viewBox={`0 0 ${VB_W} ${VB_H}`}
-            preserveAspectRatio="none"
-            sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
-            role="img"
-            aria-label="Day timeline"
-          >
-            {hours.map((h) => (
-              <line
-                key={h}
-                x1="0"
-                y1={h * 60}
-                x2={VB_W}
-                y2={h * 60}
-                stroke={gridLine}
-                strokeWidth={1}
-                vectorEffect="non-scaling-stroke"
-              />
-            ))}
-            {!readOnly
-              ? hours.map((h) => (
-                  <rect
-                    key={`slot-${h}`}
-                    x="0"
-                    y={h * 60}
-                    width={VB_W}
-                    height={60}
-                    fill="transparent"
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => {
+
+        <Box
+          sx={{
+            position: 'relative',
+            flex: 1,
+            minWidth: 0,
+            height: TIMELINE_MIN_PX,
+          }}
+        >
+          {hours.map((h) => (
+            <Box
+              key={h}
+              aria-hidden
+              sx={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                top: h * HOUR_PX,
+                height: HOUR_PX,
+                borderTop: `1px solid ${gridLine}`,
+                boxSizing: 'border-box',
+                pointerEvents: 'none',
+              }}
+            />
+          ))}
+
+          {!readOnly
+            ? hours.map((h) => (
+                <Box
+                  key={`slot-${h}`}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    const start = new Date(dayStart.getTime() + h * 60 * 60 * 1000)
+                    const end = new Date(start.getTime() + 60 * 60 * 1000)
+                    onSlotClick(start, end)
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
                       const start = new Date(dayStart.getTime() + h * 60 * 60 * 1000)
                       const end = new Date(start.getTime() + 60 * 60 * 1000)
                       onSlotClick(start, end)
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.setAttribute('fill', slotHover)
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.setAttribute('fill', 'transparent')
-                    }}
-                  />
-                ))
-              : null}
-            {blocks.map(({ e, startM, endM }) => {
-              const h = Math.max(endM - startM, 20)
-              const { fill, stroke } = eventBlockSvg(theme, e.color)
-              return (
-                <g key={e.id}>
-                  <rect
-                    x="2"
-                    y={startM}
-                    width="96"
-                    height={h}
-                    rx={2}
-                    fill={fill}
-                    stroke={stroke}
-                    strokeWidth={1}
-                    vectorEffect="non-scaling-stroke"
-                    style={{ cursor: readOnly ? 'default' : 'pointer' }}
-                    onClick={readOnly ? undefined : () => onEventClick(e)}
-                  />
-                  <text
-                    x="5"
-                    y={startM + 14}
-                    fill={textFill}
-                    style={{ fontSize: 10, fontWeight: 600, pointerEvents: 'none' }}
-                  >
-                    {e.title.length > 18 ? `${e.title.slice(0, 18)}…` : e.title}
-                  </text>
-                </g>
-              )
-            })}
-          </Box>
+                    }
+                  }}
+                  sx={{
+                    position: 'absolute',
+                    left: 0,
+                    right: 0,
+                    top: h * HOUR_PX,
+                    height: HOUR_PX,
+                    cursor: 'pointer',
+                    zIndex: 0,
+                    '&:hover': { bgcolor: slotHover },
+                  }}
+                />
+              ))
+            : null}
+
+          {blocks.map(({ e, startM, endM, column, numCols }) => {
+            const durationMin = endM - startM
+            const topPx = (startM / TOTAL_MIN) * TIMELINE_MIN_PX
+            const heightPx = Math.max((durationMin / TOTAL_MIN) * TIMELINE_MIN_PX, 22)
+            const { fill, stroke } = eventBlockSvg(theme, e.color)
+            const totalGaps = (numCols - 1) * COL_GAP_PX
+            const inner = readOnly ? (
+              <Paper
+                elevation={0}
+                sx={{
+                  height: '100%',
+                  border: 1,
+                  borderColor: stroke,
+                  bgcolor: fill,
+                  borderRadius: 1,
+                  overflow: 'hidden',
+                  px: 0.75,
+                  py: 0.5,
+                  pointerEvents: 'none',
+                }}
+              >
+                <Typography
+                  variant="caption"
+                  fontWeight={600}
+                  color="text.primary"
+                  noWrap
+                  title={e.title}
+                  sx={{
+                    display: 'block',
+                    lineHeight: 1.25,
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  {e.title}
+                </Typography>
+              </Paper>
+            ) : (
+              <Box
+                component="button"
+                type="button"
+                onClick={() => onEventClick(e)}
+                sx={{
+                  height: '100%',
+                  width: '100%',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  border: 1,
+                  borderColor: stroke,
+                  bgcolor: fill,
+                  borderRadius: 1,
+                  overflow: 'hidden',
+                  px: 0.75,
+                  py: 0.5,
+                  m: 0,
+                  font: 'inherit',
+                  display: 'block',
+                  transition: (t) => t.transitions.create(['filter', 'box-shadow'], { duration: 150 }),
+                  '&:hover': {
+                    boxShadow: 1,
+                    filter:
+                      theme.palette.mode === 'light' ? 'brightness(0.96)' : 'brightness(1.08)',
+                  },
+                }}
+              >
+                <Typography
+                  variant="caption"
+                  fontWeight={600}
+                  color="text.primary"
+                  noWrap
+                  title={e.title}
+                  sx={{
+                    display: 'block',
+                    lineHeight: 1.25,
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  {e.title}
+                </Typography>
+              </Box>
+            )
+
+            return (
+              <Box
+                key={e.id}
+                sx={{
+                  position: 'absolute',
+                  top: topPx,
+                  height: heightPx,
+                  left:
+                    numCols <= 1
+                      ? 0
+                      : `calc(${column} * ((100% - ${totalGaps}px) / ${numCols} + ${COL_GAP_PX}px))`,
+                  width: numCols <= 1 ? '100%' : `calc((100% - ${totalGaps}px) / ${numCols})`,
+                  zIndex: 1,
+                  boxSizing: 'border-box',
+                  px: 0.25,
+                }}
+              >
+                {inner}
+              </Box>
+            )
+          })}
         </Box>
       </Box>
     </Box>

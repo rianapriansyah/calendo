@@ -291,6 +291,16 @@ export function CalendarShell({
                 monthIndex0={monthIndex0}
                 events={events}
                 readOnly={readOnly}
+                onGoToDayView={(iso) => {
+                  const f = isoToCalendarDate(iso)
+                  navigateTo({
+                    view: 'day',
+                    year: f.year,
+                    month: f.month,
+                    dayISO: iso,
+                    focused: f,
+                  })
+                }}
                 onDayClick={
                   readOnly
                     ? undefined

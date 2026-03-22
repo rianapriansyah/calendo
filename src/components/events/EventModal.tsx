@@ -1,4 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import dayjs, { type Dayjs } from 'dayjs'
+import { DatePicker } from '@mui/x-date-pickers/DatePicker'
+import { TimePicker } from '@mui/x-date-pickers/TimePicker'
 import type { CalendarEvent, EventColor } from '../../types'
 import { pad2 } from '../../lib/calendar/dateUtils'
 import { EVENT_COLOR_OPTIONS, eventDotColor } from '../calendar/eventColors'
@@ -61,6 +64,17 @@ function sameLocalCalendarDay(a: Date, b: Date): boolean {
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate()
   )
+}
+
+function parseYmd(s: string): Dayjs | null {
+  if (!s) return null
+  const d = dayjs(s, 'YYYY-MM-DD', true)
+  return d.isValid() ? d : null
+}
+
+function parseHm(s: string): Dayjs {
+  const d = dayjs(s, 'HH:mm', true)
+  return d.isValid() ? d : dayjs().hour(9).minute(0).second(0)
 }
 
 type Props = {
@@ -316,30 +330,24 @@ export function EventModal({
                     One calendar day — set start and end time (defaults to today if you open “New event” from the
                     header).
                   </Typography>
-                  <TextField
+                  <DatePicker
                     label="Date"
-                    type="date"
-                    fullWidth
-                    value={dayDate}
-                    onChange={(e) => setDayDate(e.target.value)}
-                    slotProps={{ inputLabel: { shrink: true } }}
+                    value={parseYmd(dayDate)}
+                    onChange={(v) => setDayDate(v && v.isValid() ? v.format('YYYY-MM-DD') : '')}
+                    slotProps={{ textField: { fullWidth: true } }}
                   />
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                    <TextField
+                    <TimePicker
                       label="Start time"
-                      type="time"
-                      fullWidth
-                      value={dayStartTime}
-                      onChange={(e) => setDayStartTime(e.target.value)}
-                      slotProps={{ inputLabel: { shrink: true } }}
+                      value={parseHm(dayStartTime)}
+                      onChange={(v) => setDayStartTime(v && v.isValid() ? v.format('HH:mm') : '09:00')}
+                      slotProps={{ textField: { fullWidth: true } }}
                     />
-                    <TextField
+                    <TimePicker
                       label="End time"
-                      type="time"
-                      fullWidth
-                      value={dayEndTime}
-                      onChange={(e) => setDayEndTime(e.target.value)}
-                      slotProps={{ inputLabel: { shrink: true } }}
+                      value={parseHm(dayEndTime)}
+                      onChange={(v) => setDayEndTime(v && v.isValid() ? v.format('HH:mm') : '10:00')}
+                      slotProps={{ textField: { fullWidth: true } }}
                     />
                   </Stack>
                 </Stack>
@@ -349,39 +357,31 @@ export function EventModal({
                     Start and end can be on different days — each has its own date and time.
                   </Typography>
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                    <TextField
+                    <DatePicker
                       label="Start date"
-                      type="date"
-                      fullWidth
-                      value={rangeStartDate}
-                      onChange={(e) => setRangeStartDate(e.target.value)}
-                      slotProps={{ inputLabel: { shrink: true } }}
+                      value={parseYmd(rangeStartDate)}
+                      onChange={(v) => setRangeStartDate(v && v.isValid() ? v.format('YYYY-MM-DD') : '')}
+                      slotProps={{ textField: { fullWidth: true } }}
                     />
-                    <TextField
+                    <TimePicker
                       label="Start time"
-                      type="time"
-                      fullWidth
-                      value={rangeStartTime}
-                      onChange={(e) => setRangeStartTime(e.target.value)}
-                      slotProps={{ inputLabel: { shrink: true } }}
+                      value={parseHm(rangeStartTime)}
+                      onChange={(v) => setRangeStartTime(v && v.isValid() ? v.format('HH:mm') : '09:00')}
+                      slotProps={{ textField: { fullWidth: true } }}
                     />
                   </Stack>
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                    <TextField
+                    <DatePicker
                       label="End date"
-                      type="date"
-                      fullWidth
-                      value={rangeEndDate}
-                      onChange={(e) => setRangeEndDate(e.target.value)}
-                      slotProps={{ inputLabel: { shrink: true } }}
+                      value={parseYmd(rangeEndDate)}
+                      onChange={(v) => setRangeEndDate(v && v.isValid() ? v.format('YYYY-MM-DD') : '')}
+                      slotProps={{ textField: { fullWidth: true } }}
                     />
-                    <TextField
+                    <TimePicker
                       label="End time"
-                      type="time"
-                      fullWidth
-                      value={rangeEndTime}
-                      onChange={(e) => setRangeEndTime(e.target.value)}
-                      slotProps={{ inputLabel: { shrink: true } }}
+                      value={parseHm(rangeEndTime)}
+                      onChange={(v) => setRangeEndTime(v && v.isValid() ? v.format('HH:mm') : '10:00')}
+                      slotProps={{ textField: { fullWidth: true } }}
                     />
                   </Stack>
                 </Stack>
